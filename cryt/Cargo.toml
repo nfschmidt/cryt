@@ -6,3 +6,4 @@ authors = ["app"]
 [dependencies]
 clap = "~2.19.0"
 encoding = { path = "../encoding" }
+xor = { path = "../xor" }
