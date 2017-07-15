@@ -1,0 +1,8 @@
+[package]
+name = "cryt"
+version = "0.1.0"
+authors = ["app"]
+
+[dependencies]
+clap = "~2.19.0"
+encoding = { path = "../encoding" }
