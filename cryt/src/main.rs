@@ -28,6 +28,7 @@ fn main() {
                                                   .about("Encrypt using xor")
                                                   .arg(Arg::with_name("key")
                                                        .short("k")
+                                                       .long("key")
                                                        .takes_value(true)
                                                        .required(true)
                                                        .help("xor key to be used"))))
