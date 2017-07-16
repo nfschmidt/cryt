@@ -32,6 +32,16 @@ fn main() {
                                                        .takes_value(true)
                                                        .required(true)
                                                        .help("xor key to be used"))))
+                          .subcommand(SubCommand::with_name("encrypt")
+                                      .about("Decrypt input with the specified algorithm")
+                                      .subcommand(SubCommand::with_name("xor")
+                                                  .about("Decrypt using xor")
+                                                  .arg(Arg::with_name("key")
+                                                       .short("k")
+                                                       .long("key")
+                                                       .takes_value(true)
+                                                       .required(true)
+                                                       .help("xor key to be used"))))
                           .get_matches();
 
 
