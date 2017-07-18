@@ -2,6 +2,7 @@ extern crate clap;
 use clap::{App, Arg, SubCommand};
 use std::io::{self, BufReader, Read};
 
+extern crate criteria;
 extern crate encoding;
 extern crate xor;
 
@@ -42,6 +43,17 @@ fn main() {
                                                        .takes_value(true)
                                                        .required(true)
                                                        .help("xor key to be used"))))
+                          .subcommand(SubCommand::with_name("attack")
+                                      .about("Attack the specified encryption algorithm to decrypt the input")
+                                      .subcommand(SubCommand::with_name("xor")
+                                                  .about("Attack xor encrypted input")
+                                                  .arg(Arg::with_name("criterion")
+                                                       .short("c")
+                                                       .long("criterion")
+                                                       .takes_value(true)
+                                                       .required(false)
+                                                       .possible_values(&["printable", "text"])
+                                                       .help("criterion to be used for scoring the results"))))
                           .get_matches();
 
 
@@ -67,6 +79,16 @@ fn main() {
                     println!("Error: No key received!");
                 }
             }
+        }
+    } else if let Some(matches) = matches.subcommand_matches("attack") {
+        if let Some(matches) = matches.subcommand_matches("xor") {
+            let criterion = match matches.value_of("criterion") {
+                Some("printable") => criteria::printable_bytes,
+                Some("text") => criteria::text_bytes,
+                Some(_) => criteria::printable_bytes,
+                None => criteria::printable_bytes
+            };
+            run_attack_xor(criterion);
         }
     } else {
         run_interpreter();
@@ -116,6 +138,16 @@ fn run_encrypt_xor(key: &str) {
         .into_iter()
         .map(|b| b as char)
         .collect();
+    print!("{}", result);
+}
+
+fn run_attack_xor(criterion: fn(&Vec<u8>) -> f32) {
+    let (_, decrypted) = xor::single_byte_decrypted(io::stdin(), criterion);
+    let result: String = decrypted
+        .into_iter()
+        .map(|b| b as char)
+        .collect();
+
     print!("{}", result);
 }
 
