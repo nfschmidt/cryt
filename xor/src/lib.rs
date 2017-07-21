@@ -14,7 +14,7 @@ pub fn repeated_xor<R: Read, S: Read>(bytes1: R, bytes2: S) -> Vec<u8> {
         .collect()
 }
 
-pub fn single_byte_decrypted<R: Read>(bytes: R, scorer: fn(&Vec<u8>) -> f32) -> (u8, Vec<u8>) {
+pub fn single_byte_decrypted<R: Read>(bytes: R, scorer: fn(&Vec<u8>) -> f32) -> (u8, f32, Vec<u8>) {
     let mut key = 0;
     let mut score = 0.0;
     let mut decrypted: Vec<u8> = vec![];
@@ -33,7 +33,7 @@ pub fn single_byte_decrypted<R: Read>(bytes: R, scorer: fn(&Vec<u8>) -> f32) -> 
         }
     }
 
-    (key, decrypted)
+    (key, score, decrypted)
 }
 
 #[cfg(test)]
@@ -95,9 +95,10 @@ mod tests {
                 .len() as f32
         }
 
-        let (key, decrypted) = single_byte_decrypted(encrypted, scorer);
+        let (key, score, decrypted) = single_byte_decrypted(encrypted, scorer);
 
         assert_eq!(key, 'x' as u8);
+        assert_eq!(score, 15.0);
         assert_eq!(decrypted, input);
     }
 }

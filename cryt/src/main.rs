@@ -51,9 +51,13 @@ fn main() {
                                                        .short("c")
                                                        .long("criterion")
                                                        .takes_value(true)
-                                                       .required(false)
                                                        .possible_values(&["printable", "text"])
-                                                       .help("criterion to be used for scoring the results"))))
+                                                       .help("criterion to be used for scoring the results"))
+                                                  .arg(Arg::with_name("detailed")
+                                                       .short("d")
+                                                       .long("detailed")
+                                                       .required(false)
+                                                       .help("Print decrypted result, the key and the score for the selected criterion"))))
                           .get_matches();
 
 
@@ -81,14 +85,19 @@ fn main() {
             }
         }
     } else if let Some(matches) = matches.subcommand_matches("attack") {
-        if let Some(matches) = matches.subcommand_matches("xor") {
-            let criterion = match matches.value_of("criterion") {
+        if let Some(xor_matches) = matches.subcommand_matches("xor") {
+            let criterion = match xor_matches.value_of("criterion") {
                 Some("printable") => criteria::printable_bytes,
                 Some("text") => criteria::text_bytes,
                 Some(_) => criteria::printable_bytes,
                 None => criteria::printable_bytes
             };
-            run_attack_xor(criterion);
+
+            if xor_matches.is_present("detailed") {
+                run_attack_xor_detailed(criterion);
+            } else {
+                run_attack_xor(criterion);
+            }
         }
     } else {
         run_interpreter();
@@ -142,13 +151,23 @@ fn run_encrypt_xor(key: &str) {
 }
 
 fn run_attack_xor(criterion: fn(&Vec<u8>) -> f32) {
-    let (_, decrypted) = xor::single_byte_decrypted(io::stdin(), criterion);
+    let (_, _, decrypted) = xor::single_byte_decrypted(io::stdin(), criterion);
     let result: String = decrypted
         .into_iter()
         .map(|b| b as char)
         .collect();
 
     print!("{}", result);
+}
+
+fn run_attack_xor_detailed(criterion: fn(&Vec<u8>) -> f32) {
+    let (key, score, decrypted) = xor::single_byte_decrypted(io::stdin(), criterion);
+    let result: String = decrypted
+        .into_iter()
+        .map(|b| b as char)
+        .collect();
+
+    println!("Key: {}\tScore: {}\tResult: {}", key, score, result);
 }
 
 fn run_interpreter() {
