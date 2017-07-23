@@ -1,7 +1,6 @@
 [package]
-name = "xor"
+name = "bytes"
 version = "0.1.0"
 authors = ["app"]
 
 [dependencies]
-bytes = { path = "../bytes" }

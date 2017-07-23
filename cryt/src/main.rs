@@ -57,7 +57,27 @@ fn main() {
                                                        .short("d")
                                                        .long("detailed")
                                                        .required(false)
-                                                       .help("Print decrypted result, the key and the score for the selected criterion"))))
+                                                       .help("Print decrypted result, the key and the score for the selected criterion"))
+                                                  .subcommand(SubCommand::with_name("keysize")
+                                                              .about("Determine the keysize of a repeated xor encryption")
+                                                              .arg(Arg::with_name("criterion")
+                                                                   .help("Criterion to determine keysize")
+                                                                   .short("c")
+                                                                   .long("criterion")
+                                                                   .takes_value(true)
+                                                                   .possible_values(&["hamming-distance"])
+                                                                   .required(false))
+                                                              .arg(Arg::with_name("min")
+                                                                   .help("Minimum keysize to try")
+                                                                   .long("min")
+                                                                   .takes_value(true)
+                                                                   .required(false))
+                                                              .arg(Arg::with_name("max")
+                                                                   .help("Maximum keysize to try")
+                                                                   .long("max")
+                                                                   .short("m")
+                                                                   .takes_value(true)
+                                                                   .required(true)))))
                           .get_matches();
 
 
@@ -86,6 +106,27 @@ fn main() {
         }
     } else if let Some(matches) = matches.subcommand_matches("attack") {
         if let Some(xor_matches) = matches.subcommand_matches("xor") {
+            if let Some(keysize_matches) = xor_matches.subcommand_matches("keysize") {
+                let criterion = match keysize_matches.value_of("criterion") {
+                    Some("hamming-distance") => xor::hamming_distance_criterion,
+                    Some(_) => xor::hamming_distance_criterion,
+                    None => xor::hamming_distance_criterion
+                };
+
+                let min = match keysize_matches.value_of("min") {
+                    Some(v) => v.parse::<u32>().unwrap(),
+                    None => 1
+                };
+
+                let max = match keysize_matches.value_of("max") {
+                    Some(v) => v.parse::<u32>().unwrap(),
+                    None => 1
+                };
+
+                run_attack_xor_keysize(criterion, min, max);
+                return;
+            }
+
             let criterion = match xor_matches.value_of("criterion") {
                 Some("printable") => criteria::printable_bytes,
                 Some("text") => criteria::text_bytes,
@@ -168,6 +209,14 @@ fn run_attack_xor_detailed(criterion: fn(&Vec<u8>) -> f32) {
         .collect();
 
     println!("Key: {}\tScore: {}\tResult: {}", key, score, result);
+}
+
+fn run_attack_xor_keysize(criterion: fn(&Vec<u8>, size: u32) -> f32, min: u32, max: u32) {
+    let results = xor::repeated_xor_keysize(io::stdin(), min, max, criterion);
+
+    for (size, score) in results {
+        println!("Size: {}\tScore: {}", size, score);
+    }
 }
 
 fn run_interpreter() {

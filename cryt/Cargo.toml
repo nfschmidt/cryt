@@ -8,3 +8,4 @@ clap = "~2.19.0"
 encoding = { path = "../encoding" }
 xor = { path = "../xor" }
 criteria = { path = "../criteria" }
+bytes = { path = "../bytes" }
