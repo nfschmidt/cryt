@@ -77,6 +77,32 @@ fn main() {
                                                                    .long("max")
                                                                    .short("m")
                                                                    .takes_value(true)
+                                                                   .required(true)))
+                                                  .subcommand(SubCommand::with_name("repeated")
+                                                              .about("Attack repeated xor encrypted input")
+                                                              .arg(Arg::with_name("keysize-criterion")
+                                                                   .help("Criterion to determine keysize")
+                                                                   .short("k")
+                                                                   .long("keysize-criterion")
+                                                                   .takes_value(true)
+                                                                   .possible_values(&["hamming-distance"])
+                                                                   .required(false))
+                                                              .arg(Arg::with_name("criterion")
+                                                                   .short("c")
+                                                                   .long("criterion")
+                                                                   .takes_value(true)
+                                                                   .possible_values(&["printable", "text"])
+                                                                   .help("criterion to be used for scoring the results"))
+                                                              .arg(Arg::with_name("min")
+                                                                   .help("Minimum keysize to try")
+                                                                   .long("min")
+                                                                   .takes_value(true)
+                                                                   .required(false))
+                                                              .arg(Arg::with_name("max")
+                                                                   .help("Maximum keysize to try")
+                                                                   .long("max")
+                                                                   .short("m")
+                                                                   .takes_value(true)
                                                                    .required(true)))))
                           .get_matches();
 
@@ -125,6 +151,32 @@ fn main() {
 
                 run_attack_xor_keysize(criterion, min, max);
                 return;
+            } else if let Some(repeated_matches) = xor_matches.subcommand_matches("repeated") {
+                let xor_criterion = match repeated_matches.value_of("criterion") {
+                    Some("printable") => criteria::printable_bytes,
+                    Some("text") => criteria::text_bytes,
+                    Some(_) => criteria::printable_bytes,
+                    None => criteria::printable_bytes
+                };
+
+                let keysize_criterion = match repeated_matches.value_of("keysize-criterion") {
+                    Some("hamming-distance") => xor::hamming_distance_criterion,
+                    Some(_) => xor::hamming_distance_criterion,
+                    None => xor::hamming_distance_criterion
+                };
+
+                let min = match repeated_matches.value_of("min") {
+                    Some(v) => v.parse::<u32>().unwrap(),
+                    None => 1
+                };
+
+                let max = match repeated_matches.value_of("max") {
+                    Some(v) => v.parse::<u32>().unwrap(),
+                    None => 1
+                };
+
+                run_attack_xor_repeated(keysize_criterion, min, max, xor_criterion);
+                return;
             }
 
             let criterion = match xor_matches.value_of("criterion") {
@@ -163,7 +215,7 @@ fn run_decode_base64() {
                 .into_iter()
                 .map(|b| b as char)
                 .collect();
-            println!("{}", result);
+            print!("{}", result);
         }
         Err(error) => { print!("Error: {}", error); }
     }
@@ -215,8 +267,23 @@ fn run_attack_xor_keysize(criterion: fn(&Vec<u8>, size: u32) -> f32, min: u32, m
     let results = xor::repeated_xor_keysize(io::stdin(), min, max, criterion);
 
     for (size, score) in results {
-        println!("Size: {}\tScore: {}", size, score);
+        print!("Size: {}\tScore: {}", size, score);
     }
+}
+
+fn run_attack_xor_repeated(keysize_criterion: fn(&Vec<u8>, size: u32) -> f32, min: u32, max: u32, xor_criterion: fn(&Vec<u8>) -> f32) {
+    let (key, decrypted) = xor::decrypted_repeated_xor(io::stdin(), min, max, keysize_criterion, xor_criterion);
+    let key_string: String = key
+        .into_iter()
+        .map(|b| b as char)
+        .collect();
+
+    let decrypted_string: String = decrypted
+        .into_iter()
+        .map(|b| b as char)
+        .collect();
+
+    print!("Key: {}\nDecrypted:\n{}", key_string, decrypted_string);
 }
 
 fn run_interpreter() {

@@ -68,6 +68,30 @@ pub fn hamming_distance_criterion(input: &Vec<u8>, size: u32) -> f32 {
     1.0 / (distances_sum as f32 / chunk_pairs_count as f32 / size as f32)
 }
 
+pub fn decrypted_repeated_xor<R: Read>(input: R, min_key_size: u32, max_key_size: u32, keysize_criterion: fn (&Vec<u8>, u32) -> f32, xor_criterion: fn (&Vec<u8>) -> f32) -> (Vec<u8>, Vec<u8>) {
+
+    let input_bytes: Vec<u8> = input.bytes().map(|b| b.unwrap()).collect();
+    let keysizes = repeated_xor_keysize(&input_bytes[..], min_key_size, max_key_size, keysize_criterion);
+    let keysize = keysizes[0].0;
+
+    let mut key = Vec::new();
+
+    for nth_position in 0..keysize {
+        let block: Vec<u8> = input_bytes
+            .iter()
+            .enumerate()
+            .filter(|x| x.0 as u32 % keysize == nth_position)
+            .map(|(_, &b)| b)
+            .collect();
+
+        let (block_key, _, _) = single_byte_decrypted(&block[..], xor_criterion);
+        key.push(block_key);
+    }
+
+    let result = repeated_xor(&input_bytes[..], &key[..]);
+    (key, result)
+}
+
 #[cfg(test)]
 mod tests {
     extern crate bytes;
@@ -189,5 +213,37 @@ mod tests {
         ) as f32 / 2.0) / 3.0);
 
         assert_eq!(score, expected)
+    }
+
+    #[test]
+    fn repeated_xor_decrypted() {
+        let plain_text = "this text is encrypted with repeated xor".as_bytes();
+        let key = "SeCreT".as_bytes();
+        let input = repeated_xor(
+            BufReader::new(plain_text),
+            BufReader::new(key));
+
+        fn keysize_scorer(_: &Vec<u8>, keysize: u32) -> f32 {
+            if keysize == "SeCreT".as_bytes().len() as u32 {
+                2.0
+            } else {
+                1.0 / keysize as f32
+            }
+        }
+
+        fn xor_scorer(input: &Vec<u8>) -> f32 {
+            input
+                .iter()
+                .filter(|&&b| "this text is encrypted with repeated xor"
+                            .as_bytes()
+                            .iter()
+                            .any(|&c| c == b))
+                .count() as f32
+        }
+
+        let (resultkey, decrypted) = decrypted_repeated_xor(&input[..], 1, 15, keysize_scorer, xor_scorer);
+
+        assert_eq!(Vec::from(key), resultkey);
+        assert_eq!(Vec::from(plain_text), decrypted);
     }
 }
