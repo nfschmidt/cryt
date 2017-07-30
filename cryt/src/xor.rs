@@ -94,7 +94,7 @@ pub fn decrypted_repeated_xor<R: Read>(input: R, min_key_size: u32, max_key_size
 
 #[cfg(test)]
 mod tests {
-    extern crate bytes;
+    use bytes;
 
     use super::*;
     use std::io::{BufReader};
