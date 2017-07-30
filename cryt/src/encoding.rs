@@ -1,10 +1,8 @@
-use std::io::{Read};
-
 const HEX_SYMBOLS: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
 
 const BASE64_SYMBOLS: [char; 64] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'];
 
-fn byte_to_hex(byte: u8) -> String {
+fn byte_to_hex(byte: &u8) -> String {
     let upper_nyble_index: usize = (byte >> 4) as usize;
     let lower_nyble_index: usize = (byte & 0x0F) as usize;
 
@@ -12,9 +10,9 @@ fn byte_to_hex(byte: u8) -> String {
         &HEX_SYMBOLS[lower_nyble_index].to_string()
 }
 
-pub fn hex_encode<R: Read>(bytes: R) -> String {
-    bytes.bytes()
-        .map(|b| b.unwrap())
+pub fn hex_encode(bytes: &[u8]) -> String {
+    bytes
+        .iter()
         .map(byte_to_hex)
         .fold(String::new(), |acc, s| acc + &s)
 }
@@ -36,13 +34,13 @@ pub fn hex_decode(hex: &String) -> Vec<u8> {
     result
 }
 
-pub fn base64_encode<R: Read>(bytes: R) -> String {
+pub fn base64_encode(bytes: &[u8]) -> String {
     let mut result = String::new();
     let mut remaining: u8 = 0;
     let mut b64_symbol_index;
     let mut count = 0;
 
-    for (i, b) in bytes.bytes().map(|b| b.unwrap()).enumerate() {
+    for (i, b) in bytes.iter().enumerate() {
         count += 1;
         match i % 3 {
             0 => {
@@ -112,13 +110,11 @@ pub fn base64_decode(b64: &String) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{BufReader};
 
     #[test]
     fn hex_encoding() {
         let input = [10, 123, 232, 100];
-        let reader = BufReader::new(&input[..]);
-        assert_eq!(hex_encode(reader), String::from("0a7be864"));
+        assert_eq!(hex_encode(&input), String::from("0a7be864"));
     }
 
     #[test]
@@ -130,22 +126,19 @@ mod tests {
     #[test]
     fn base64_encoding_without_padding() {
         let input = [116, 101, 115, 116, 52, 33];
-        let reader = BufReader::new(&input[..]);
-        assert_eq!(base64_encode(reader), String::from("dGVzdDQh"))
+        assert_eq!(base64_encode(&input), String::from("dGVzdDQh"))
     }
 
     #[test]
     fn base64_encoding_1_padding() {
         let input = [116, 101, 115, 116, 49, 48, 52, 33];
-        let reader = BufReader::new(&input[..]);
-        assert_eq!(base64_encode(reader), String::from("dGVzdDEwNCE="))
+        assert_eq!(base64_encode(&input), String::from("dGVzdDEwNCE="))
     }
 
     #[test]
     fn base64_encoding_2_paddings() {
         let input = vec![116, 101, 115, 116, 49, 52, 33];
-        let reader = BufReader::new(&input[..]);
-        assert_eq!(base64_encode(reader), String::from("dGVzdDE0IQ=="))
+        assert_eq!(base64_encode(&input), String::from("dGVzdDE0IQ=="))
     }
 
     #[test]

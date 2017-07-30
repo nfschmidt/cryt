@@ -200,12 +200,18 @@ fn main() {
 }
 
 fn run_encode_base64() {
-    let result = encoding::base64_encode(io::stdin());
+    let mut input = Vec::new();
+    io::stdin().read_to_end(&mut input).unwrap();
+
+    let result = encoding::base64_encode(&input);
     print!("{}", result);
 }
 
 fn run_encode_hex() {
-    let result = encoding::hex_encode(io::stdin());
+    let mut input = Vec::new();
+    io::stdin().read_to_end(&mut input).unwrap();
+
+    let result = encoding::hex_encode(&input);
     print!("{}", result);
 }
 
