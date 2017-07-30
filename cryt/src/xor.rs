@@ -1,27 +1,17 @@
 use bytes;
 
-use std::io::{Read};
-
-pub fn repeated_xor<R: Read, S: Read>(bytes1: R, bytes2: S) -> Vec<u8> {
-    let repeated_key: Vec<u8> = bytes2
-        .bytes()
-        .map(|b| b.unwrap())
-        .collect();
-
-    bytes1
-        .bytes()
-        .map(|b| b.unwrap())
-        .zip(repeated_key.into_iter().cycle())
+pub fn repeated_xor(input: &[u8], key: &[u8]) -> Vec<u8> {
+    input
+        .iter()
+        .zip(key.iter().cycle())
         .map(|(b1, b2)| b1^b2)
         .collect()
 }
 
-pub fn single_byte_decrypted<R: Read>(bytes: R, scorer: fn(&Vec<u8>) -> f32) -> (u8, f32, Vec<u8>) {
+pub fn single_byte_decrypted(input: &[u8], scorer: fn(&[u8]) -> f32) -> (u8, f32, Vec<u8>) {
     let mut key = 0;
     let mut score = 0.0;
     let mut decrypted: Vec<u8> = vec![];
-
-    let input = &bytes.bytes().map(|b| b.unwrap()).collect::<Vec<u8>>()[..];
 
     for i in 0..256 {
         let k: u16 = i; // Fix to avoid buggy overflow warning
@@ -38,14 +28,9 @@ pub fn single_byte_decrypted<R: Read>(bytes: R, scorer: fn(&Vec<u8>) -> f32) -> 
     (key, score, decrypted)
 }
 
-pub fn repeated_xor_keysize<R: Read>(bytes: R, min_length: u32, max_length: u32, criterion: fn(&Vec<u8>, u32) -> f32) -> Vec<(u32, f32)> {
-    let input: Vec<u8> = bytes
-        .bytes()
-        .map(|b| b.unwrap())
-        .collect();
-
+pub fn repeated_xor_keysize(input: &[u8], min_length: u32, max_length: u32, criterion: fn(&[u8], u32) -> f32) -> Vec<(u32, f32)> {
     let mut results = (min_length..max_length + 1)
-        .map(|l| (l, criterion(&input, l)) )
+        .map(|l| (l, criterion(input, l)) )
         .collect::<Vec<_>>();
 
     results.sort_by(|&(_, s1), &(_, s2)| s2.partial_cmp(&s1).unwrap());
@@ -53,7 +38,7 @@ pub fn repeated_xor_keysize<R: Read>(bytes: R, min_length: u32, max_length: u32,
     results
 }
 
-pub fn hamming_distance_criterion(input: &Vec<u8>, size: u32) -> f32 {
+pub fn hamming_distance_criterion(input: &[u8], size: u32) -> f32 {
     let mut chunk_pairs_count = 0;
     let mut distances_sum = 0;
     for chunk_pair in input.chunks(size as usize).collect::<Vec<_>>().chunks(2) {
@@ -68,16 +53,15 @@ pub fn hamming_distance_criterion(input: &Vec<u8>, size: u32) -> f32 {
     1.0 / (distances_sum as f32 / chunk_pairs_count as f32 / size as f32)
 }
 
-pub fn decrypted_repeated_xor<R: Read>(input: R, min_key_size: u32, max_key_size: u32, keysize_criterion: fn (&Vec<u8>, u32) -> f32, xor_criterion: fn (&Vec<u8>) -> f32) -> (Vec<u8>, Vec<u8>) {
+pub fn decrypted_repeated_xor(input: &[u8], min_key_size: u32, max_key_size: u32, keysize_criterion: fn (&[u8], u32) -> f32, xor_criterion: fn (&[u8]) -> f32) -> (Vec<u8>, Vec<u8>) {
 
-    let input_bytes: Vec<u8> = input.bytes().map(|b| b.unwrap()).collect();
-    let keysizes = repeated_xor_keysize(&input_bytes[..], min_key_size, max_key_size, keysize_criterion);
+    let keysizes = repeated_xor_keysize(&input[..], min_key_size, max_key_size, keysize_criterion);
     let keysize = keysizes[0].0;
 
     let mut key = Vec::new();
 
     for nth_position in 0..keysize {
-        let block: Vec<u8> = input_bytes
+        let block: Vec<u8> = input
             .iter()
             .enumerate()
             .filter(|x| x.0 as u32 % keysize == nth_position)
@@ -88,7 +72,7 @@ pub fn decrypted_repeated_xor<R: Read>(input: R, min_key_size: u32, max_key_size
         key.push(block_key);
     }
 
-    let result = repeated_xor(&input_bytes[..], &key[..]);
+    let result = repeated_xor(&input[..], &key[..]);
     (key, result)
 }
 
@@ -97,7 +81,6 @@ mod tests {
     use bytes;
 
     use super::*;
-    use std::io::{BufReader};
 
     #[test]
     fn single_byte_against_signle_byte() {
@@ -105,7 +88,7 @@ mod tests {
         let xor_bytes = &[0xd1][..];
 
         assert_eq!(
-            repeated_xor(BufReader::new(input), BufReader::new(xor_bytes)),
+            repeated_xor(input, xor_bytes),
             vec![0xb4]);
     }
 
@@ -115,7 +98,7 @@ mod tests {
         let xor_bytes = &[0xd1, 0x03][..];
 
         assert_eq!(
-            repeated_xor(BufReader::new(input), BufReader::new(xor_bytes)),
+            repeated_xor(input, xor_bytes),
             vec![0xb4, 0x22, 0x2b]);
     }
 
@@ -125,7 +108,7 @@ mod tests {
         let xor_bytes = &[0x65, 0x21, 0xfa][..];
 
         assert_eq!(
-            repeated_xor(BufReader::new(input), BufReader::new(xor_bytes)),
+            repeated_xor(input, xor_bytes),
             vec![0xb4, 0x22]);
     }
 
@@ -135,7 +118,7 @@ mod tests {
         let xor_bytes = &[0x65, 0x21, 0xfa][..];
 
         assert_eq!(
-            repeated_xor(BufReader::new(input), BufReader::new(xor_bytes)),
+            repeated_xor(input, xor_bytes),
             vec![0xb4, 0x22, 0x45]);
     }
 
@@ -143,11 +126,11 @@ mod tests {
     fn single_byte_decryption_retuns_byte_with_highest_score() {
         let input = "eeeee English text with lots of 'e' eeeeeeee".as_bytes();
         let key = &['x' as u8][..];
-        let encrypted = &repeated_xor(input, BufReader::new(key))[..];
+        let encrypted = &repeated_xor(input, key)[..];
 
-        fn scorer(input: &Vec<u8>) -> f32 {
+        fn scorer(input: &[u8]) -> f32 {
             input
-                .into_iter()
+                .iter()
                 .filter(|&&b| b == 0x65)
                 .collect::<Vec<_>>()
                 .len() as f32
@@ -162,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_repeated_xor_keysize() {
-        fn keysize_scorer(_: &Vec<u8>, keysize: u32) -> f32 {
+        fn keysize_scorer(_: &[u8], keysize: u32) -> f32 {
             if keysize == 8 {
                 2.0
             } else {
@@ -171,7 +154,7 @@ mod tests {
         }
 
         assert_eq!(
-            repeated_xor_keysize(BufReader::new("test".as_bytes()), 1, 10, keysize_scorer),
+            repeated_xor_keysize("test".as_bytes(), 1, 10, keysize_scorer),
             [(8, 2.0), (1, 1.0/1.0), (2, 1.0/2.0), (3, 1.0/3.0), (4, 1.0/4.0), (5, 1.0/5.0), (6, 1.0/6.0), (7, 1.0/7.0), (9, 1.0/9.0), (10, 1.0/10.0)])
     }
 
@@ -181,8 +164,8 @@ mod tests {
         let score = hamming_distance_criterion(&input, 6);
 
         let expected = 1.0 / (((
-            bytes::hamming_distance(BufReader::new("some r".as_bytes()), BufReader::new("andom ".as_bytes())) +
-            bytes::hamming_distance(BufReader::new("text i".as_bytes()), BufReader::new("n eng!".as_bytes()))
+            bytes::hamming_distance("some r".as_bytes(), "andom ".as_bytes()) +
+            bytes::hamming_distance("text i".as_bytes(), "n eng!".as_bytes())
         ) as f32 / 2.0) / 6.0);
 
         assert_eq!(score, expected)
@@ -194,9 +177,9 @@ mod tests {
         let score = hamming_distance_criterion(&input, 3);
 
         let expected = 1.0 / (((
-            bytes::hamming_distance(BufReader::new("som".as_bytes()), BufReader::new("e r".as_bytes())) +
-            bytes::hamming_distance(BufReader::new("and".as_bytes()), BufReader::new("om ".as_bytes())) +
-            bytes::hamming_distance(BufReader::new("tex".as_bytes()), BufReader::new("t!!".as_bytes()))
+            bytes::hamming_distance("som".as_bytes(), "e r".as_bytes()) +
+            bytes::hamming_distance("and".as_bytes(), "om ".as_bytes()) +
+            bytes::hamming_distance("tex".as_bytes(), "t!!".as_bytes())
         ) as f32 / 3.0) / 3.0);
 
         assert_eq!(score, expected)
@@ -208,8 +191,8 @@ mod tests {
         let score = hamming_distance_criterion(&input, 3);
 
         let expected = 1.0 / (((
-            bytes::hamming_distance(BufReader::new("som".as_bytes()), BufReader::new("e r".as_bytes())) +
-            bytes::hamming_distance(BufReader::new("and".as_bytes()), BufReader::new("om ".as_bytes()))
+            bytes::hamming_distance("som".as_bytes(), "e r".as_bytes()) +
+            bytes::hamming_distance("and".as_bytes(), "om ".as_bytes())
         ) as f32 / 2.0) / 3.0);
 
         assert_eq!(score, expected)
@@ -220,10 +203,10 @@ mod tests {
         let plain_text = "this text is encrypted with repeated xor".as_bytes();
         let key = "SeCreT".as_bytes();
         let input = repeated_xor(
-            BufReader::new(plain_text),
-            BufReader::new(key));
+            plain_text,
+            key);
 
-        fn keysize_scorer(_: &Vec<u8>, keysize: u32) -> f32 {
+        fn keysize_scorer(_: &[u8], keysize: u32) -> f32 {
             if keysize == "SeCreT".as_bytes().len() as u32 {
                 2.0
             } else {
@@ -231,7 +214,7 @@ mod tests {
             }
         }
 
-        fn xor_scorer(input: &Vec<u8>) -> f32 {
+        fn xor_scorer(input: &[u8]) -> f32 {
             input
                 .iter()
                 .filter(|&&b| "this text is encrypted with repeated xor"
