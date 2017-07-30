@@ -1,4 +1,4 @@
-extern crate bytes;
+use bytes;
 
 use std::io::{Read};
 
