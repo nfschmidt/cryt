@@ -10,12 +10,10 @@ pub fn repeated_xor(input: &[u8], key: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-pub fn single_byte_decrypted<R: Read>(bytes: R, scorer: fn(&Vec<u8>) -> f32) -> (u8, f32, Vec<u8>) {
+pub fn single_byte_decrypted(input: &[u8], scorer: fn(&[u8]) -> f32) -> (u8, f32, Vec<u8>) {
     let mut key = 0;
     let mut score = 0.0;
     let mut decrypted: Vec<u8> = vec![];
-
-    let input = &bytes.bytes().map(|b| b.unwrap()).collect::<Vec<u8>>()[..];
 
     for i in 0..256 {
         let k: u16 = i; // Fix to avoid buggy overflow warning
@@ -32,7 +30,7 @@ pub fn single_byte_decrypted<R: Read>(bytes: R, scorer: fn(&Vec<u8>) -> f32) -> 
     (key, score, decrypted)
 }
 
-pub fn repeated_xor_keysize<R: Read>(bytes: R, min_length: u32, max_length: u32, criterion: fn(&Vec<u8>, u32) -> f32) -> Vec<(u32, f32)> {
+pub fn repeated_xor_keysize<R: Read>(bytes: R, min_length: u32, max_length: u32, criterion: fn(&[u8], u32) -> f32) -> Vec<(u32, f32)> {
     let input: Vec<u8> = bytes
         .bytes()
         .map(|b| b.unwrap())
@@ -47,7 +45,7 @@ pub fn repeated_xor_keysize<R: Read>(bytes: R, min_length: u32, max_length: u32,
     results
 }
 
-pub fn hamming_distance_criterion(input: &Vec<u8>, size: u32) -> f32 {
+pub fn hamming_distance_criterion(input: &[u8], size: u32) -> f32 {
     let mut chunk_pairs_count = 0;
     let mut distances_sum = 0;
     for chunk_pair in input.chunks(size as usize).collect::<Vec<_>>().chunks(2) {
@@ -62,7 +60,7 @@ pub fn hamming_distance_criterion(input: &Vec<u8>, size: u32) -> f32 {
     1.0 / (distances_sum as f32 / chunk_pairs_count as f32 / size as f32)
 }
 
-pub fn decrypted_repeated_xor<R: Read>(input: R, min_key_size: u32, max_key_size: u32, keysize_criterion: fn (&Vec<u8>, u32) -> f32, xor_criterion: fn (&Vec<u8>) -> f32) -> (Vec<u8>, Vec<u8>) {
+pub fn decrypted_repeated_xor<R: Read>(input: R, min_key_size: u32, max_key_size: u32, keysize_criterion: fn (&[u8], u32) -> f32, xor_criterion: fn (&[u8]) -> f32) -> (Vec<u8>, Vec<u8>) {
 
     let input_bytes: Vec<u8> = input.bytes().map(|b| b.unwrap()).collect();
     let keysizes = repeated_xor_keysize(&input_bytes[..], min_key_size, max_key_size, keysize_criterion);
@@ -139,9 +137,9 @@ mod tests {
         let key = &['x' as u8][..];
         let encrypted = &repeated_xor(input, key)[..];
 
-        fn scorer(input: &Vec<u8>) -> f32 {
+        fn scorer(input: &[u8]) -> f32 {
             input
-                .into_iter()
+                .iter()
                 .filter(|&&b| b == 0x65)
                 .collect::<Vec<_>>()
                 .len() as f32
@@ -156,7 +154,7 @@ mod tests {
 
     #[test]
     fn test_repeated_xor_keysize() {
-        fn keysize_scorer(_: &Vec<u8>, keysize: u32) -> f32 {
+        fn keysize_scorer(_: &[u8], keysize: u32) -> f32 {
             if keysize == 8 {
                 2.0
             } else {
@@ -217,7 +215,7 @@ mod tests {
             plain_text,
             key);
 
-        fn keysize_scorer(_: &Vec<u8>, keysize: u32) -> f32 {
+        fn keysize_scorer(_: &[u8], keysize: u32) -> f32 {
             if keysize == "SeCreT".as_bytes().len() as u32 {
                 2.0
             } else {
@@ -225,7 +223,7 @@ mod tests {
             }
         }
 
-        fn xor_scorer(input: &Vec<u8>) -> f32 {
+        fn xor_scorer(input: &[u8]) -> f32 {
             input
                 .iter()
                 .filter(|&&b| "this text is encrypted with repeated xor"

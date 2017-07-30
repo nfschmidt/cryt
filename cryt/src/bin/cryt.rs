@@ -212,13 +212,10 @@ fn run_decode_base64() {
     let mut input = String::new();
     match io::stdin().read_to_string(&mut input) {
         Ok(_) => {
-            let result: String = encoding::base64_decode(&input)
-                .into_iter()
-                .map(|b| b as char)
-                .collect();
-            print!("{}", result);
+            let result = encoding::base64_decode(&input);
+            io::stdout().write(&result).unwrap();
         }
-        Err(error) => { print!("Error: {}", error); }
+        Err(error) => { println!("Error: {}", error); }
     }
 }
 
@@ -226,11 +223,8 @@ fn run_decode_hex() {
     let mut input = String::new();
     match io::stdin().read_to_string(&mut input) {
         Ok(_) => {
-            let result: String = encoding::hex_decode(&input)
-                .into_iter()
-                .map(|b| b as char)
-                .collect();
-            print!("{}", result);
+            let result = encoding::hex_decode(&input);
+            io::stdout().write(&result).unwrap();
         }
         Err(error) => { println!("Error: {}", error); }
     }
@@ -244,35 +238,35 @@ fn run_encrypt_xor(key: &str) {
     io::stdout().write(&result).unwrap();
 }
 
-fn run_attack_xor(criterion: fn(&Vec<u8>) -> f32) {
-    let (_, _, decrypted) = xor::single_byte_decrypted(io::stdin(), criterion);
-    let result: String = decrypted
-        .into_iter()
-        .map(|b| b as char)
-        .collect();
+fn run_attack_xor(criterion: fn(&[u8]) -> f32) {
+    let mut input = Vec::new();
+    io::stdin().read_to_end(&mut input).unwrap();
 
-    print!("{}", result);
+    let (_, _, decrypted) = xor::single_byte_decrypted(&input, criterion);
+
+    io::stdout().write(&decrypted).unwrap();
 }
 
-fn run_attack_xor_detailed(criterion: fn(&Vec<u8>) -> f32) {
-    let (key, score, decrypted) = xor::single_byte_decrypted(io::stdin(), criterion);
-    let result: String = decrypted
-        .into_iter()
-        .map(|b| b as char)
-        .collect();
+fn run_attack_xor_detailed(criterion: fn(&[u8]) -> f32) {
+    let mut input = Vec::new();
+    io::stdin().read_to_end(&mut input).unwrap();
 
-    println!("Key: {}\tScore: {}\tResult: {}", key, score, result);
+    let (key, score, decrypted) = xor::single_byte_decrypted(&input, criterion);
+
+    print!("Key: {}\tScore: {}\tResult: ", key, score);
+    io::stdout().write(&decrypted).unwrap();
+    println!("");
 }
 
-fn run_attack_xor_keysize(criterion: fn(&Vec<u8>, size: u32) -> f32, min: u32, max: u32) {
+fn run_attack_xor_keysize(criterion: fn(&[u8], size: u32) -> f32, min: u32, max: u32) {
     let results = xor::repeated_xor_keysize(io::stdin(), min, max, criterion);
 
     for (size, score) in results {
-        print!("Size: {}\tScore: {}", size, score);
+        println!("Size: {}\tScore: {}", size, score);
     }
 }
 
-fn run_attack_xor_repeated(keysize_criterion: fn(&Vec<u8>, size: u32) -> f32, min: u32, max: u32, xor_criterion: fn(&Vec<u8>) -> f32) {
+fn run_attack_xor_repeated(keysize_criterion: fn(&[u8], size: u32) -> f32, min: u32, max: u32, xor_criterion: fn(&[u8]) -> f32) {
     let (key, decrypted) = xor::decrypted_repeated_xor(io::stdin(), min, max, keysize_criterion, xor_criterion);
     let key_string: String = key
         .into_iter()
