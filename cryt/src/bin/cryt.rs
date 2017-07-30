@@ -1,7 +1,7 @@
 extern crate cryt;
 extern crate clap;
 use clap::{App, Arg, SubCommand};
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 
 use cryt::criteria;
 use cryt::encoding;
@@ -240,11 +240,8 @@ fn run_encrypt_xor(key: &str) {
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
-    let result: String = xor::repeated_xor(&input, key.as_bytes())
-        .into_iter()
-        .map(|b| b as char)
-        .collect();
-    print!("{}", result);
+    let result = xor::repeated_xor(&input, key.as_bytes());
+    io::stdout().write(&result).unwrap();
 }
 
 fn run_attack_xor(criterion: fn(&Vec<u8>) -> f32) {
