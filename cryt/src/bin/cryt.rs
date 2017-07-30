@@ -249,7 +249,7 @@ fn run_attack_xor(criterion: fn(&[u8]) -> f32) {
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
-    let (_, _, decrypted) = xor::single_byte_decrypted(&input, criterion);
+    let (_, _, decrypted) = xor::single_byte_decrypted(&input, &criterion);
 
     io::stdout().write(&decrypted).unwrap();
 }
@@ -258,7 +258,7 @@ fn run_attack_xor_detailed(criterion: fn(&[u8]) -> f32) {
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
-    let (key, score, decrypted) = xor::single_byte_decrypted(&input, criterion);
+    let (key, score, decrypted) = xor::single_byte_decrypted(&input, &criterion);
 
     print!("Key: {}\tScore: {}\tResult: ", key, score);
     io::stdout().write(&decrypted).unwrap();
@@ -269,7 +269,7 @@ fn run_attack_xor_keysize(criterion: fn(&[u8], size: u32) -> f32, min: u32, max:
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
-    let results = xor::repeated_xor_keysize(&input, min, max, criterion);
+    let results = xor::repeated_xor_keysize(&input, min, max, &criterion);
 
     for (size, score) in results {
         println!("Size: {}\tScore: {}", size, score);
@@ -280,7 +280,7 @@ fn run_attack_xor_repeated(keysize_criterion: fn(&[u8], size: u32) -> f32, min: 
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
-    let (key, decrypted) = xor::decrypted_repeated_xor(&input, min, max, keysize_criterion, xor_criterion);
+    let (key, decrypted) = xor::decrypted_repeated_xor(&input, min, max, &keysize_criterion, &xor_criterion);
 
     let mut stdout = io::stdout();
     print!("Key: ");
