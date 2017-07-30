@@ -1,10 +1,11 @@
+extern crate cryt;
 extern crate clap;
 use clap::{App, Arg, SubCommand};
 use std::io::{self, BufReader, Read};
 
-extern crate criteria;
-extern crate encoding;
-extern crate xor;
+use cryt::criteria;
+use cryt::encoding;
+use cryt::xor;
 
 fn main() {
     let matches = App::new("cryt")
