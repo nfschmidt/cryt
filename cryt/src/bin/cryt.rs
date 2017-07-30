@@ -259,7 +259,10 @@ fn run_attack_xor_detailed(criterion: fn(&[u8]) -> f32) {
 }
 
 fn run_attack_xor_keysize(criterion: fn(&[u8], size: u32) -> f32, min: u32, max: u32) {
-    let results = xor::repeated_xor_keysize(io::stdin(), min, max, criterion);
+    let mut input = Vec::new();
+    io::stdin().read_to_end(&mut input).unwrap();
+
+    let results = xor::repeated_xor_keysize(&input, min, max, criterion);
 
     for (size, score) in results {
         println!("Size: {}\tScore: {}", size, score);

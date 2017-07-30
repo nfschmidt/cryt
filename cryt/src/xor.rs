@@ -30,14 +30,9 @@ pub fn single_byte_decrypted(input: &[u8], scorer: fn(&[u8]) -> f32) -> (u8, f32
     (key, score, decrypted)
 }
 
-pub fn repeated_xor_keysize<R: Read>(bytes: R, min_length: u32, max_length: u32, criterion: fn(&[u8], u32) -> f32) -> Vec<(u32, f32)> {
-    let input: Vec<u8> = bytes
-        .bytes()
-        .map(|b| b.unwrap())
-        .collect();
-
+pub fn repeated_xor_keysize(input: &[u8], min_length: u32, max_length: u32, criterion: fn(&[u8], u32) -> f32) -> Vec<(u32, f32)> {
     let mut results = (min_length..max_length + 1)
-        .map(|l| (l, criterion(&input, l)) )
+        .map(|l| (l, criterion(input, l)) )
         .collect::<Vec<_>>();
 
     results.sort_by(|&(_, s1), &(_, s2)| s2.partial_cmp(&s1).unwrap());
@@ -163,7 +158,7 @@ mod tests {
         }
 
         assert_eq!(
-            repeated_xor_keysize(BufReader::new("test".as_bytes()), 1, 10, keysize_scorer),
+            repeated_xor_keysize("test".as_bytes(), 1, 10, keysize_scorer),
             [(8, 2.0), (1, 1.0/1.0), (2, 1.0/2.0), (3, 1.0/3.0), (4, 1.0/4.0), (5, 1.0/5.0), (6, 1.0/6.0), (7, 1.0/7.0), (9, 1.0/9.0), (10, 1.0/10.0)])
     }
 
