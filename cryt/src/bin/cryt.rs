@@ -1,5 +1,6 @@
 extern crate cryt;
 extern crate clap;
+
 use clap::{App, Arg, SubCommand};
 use std::io::{self, Read, Write};
 
@@ -270,18 +271,16 @@ fn run_attack_xor_keysize(criterion: fn(&[u8], size: u32) -> f32, min: u32, max:
 }
 
 fn run_attack_xor_repeated(keysize_criterion: fn(&[u8], size: u32) -> f32, min: u32, max: u32, xor_criterion: fn(&[u8]) -> f32) {
-    let (key, decrypted) = xor::decrypted_repeated_xor(io::stdin(), min, max, keysize_criterion, xor_criterion);
-    let key_string: String = key
-        .into_iter()
-        .map(|b| b as char)
-        .collect();
+    let mut input = Vec::new();
+    io::stdin().read_to_end(&mut input).unwrap();
 
-    let decrypted_string: String = decrypted
-        .into_iter()
-        .map(|b| b as char)
-        .collect();
+    let (key, decrypted) = xor::decrypted_repeated_xor(&input, min, max, keysize_criterion, xor_criterion);
 
-    print!("Key: {}\nDecrypted:\n{}", key_string, decrypted_string);
+    let mut stdout = io::stdout();
+    print!("Key: ");
+    stdout.write(&key).unwrap();
+    print!("\nDecrypted:\n");
+    stdout.write(&decrypted).unwrap();
 }
 
 fn run_interpreter() {

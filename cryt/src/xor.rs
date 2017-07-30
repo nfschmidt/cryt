@@ -1,7 +1,5 @@
 use bytes;
 
-use std::io::{Read};
-
 pub fn repeated_xor(input: &[u8], key: &[u8]) -> Vec<u8> {
     input
         .iter()
@@ -55,16 +53,15 @@ pub fn hamming_distance_criterion(input: &[u8], size: u32) -> f32 {
     1.0 / (distances_sum as f32 / chunk_pairs_count as f32 / size as f32)
 }
 
-pub fn decrypted_repeated_xor<R: Read>(input: R, min_key_size: u32, max_key_size: u32, keysize_criterion: fn (&[u8], u32) -> f32, xor_criterion: fn (&[u8]) -> f32) -> (Vec<u8>, Vec<u8>) {
+pub fn decrypted_repeated_xor(input: &[u8], min_key_size: u32, max_key_size: u32, keysize_criterion: fn (&[u8], u32) -> f32, xor_criterion: fn (&[u8]) -> f32) -> (Vec<u8>, Vec<u8>) {
 
-    let input_bytes: Vec<u8> = input.bytes().map(|b| b.unwrap()).collect();
-    let keysizes = repeated_xor_keysize(&input_bytes[..], min_key_size, max_key_size, keysize_criterion);
+    let keysizes = repeated_xor_keysize(&input[..], min_key_size, max_key_size, keysize_criterion);
     let keysize = keysizes[0].0;
 
     let mut key = Vec::new();
 
     for nth_position in 0..keysize {
-        let block: Vec<u8> = input_bytes
+        let block: Vec<u8> = input
             .iter()
             .enumerate()
             .filter(|x| x.0 as u32 % keysize == nth_position)
@@ -75,7 +72,7 @@ pub fn decrypted_repeated_xor<R: Read>(input: R, min_key_size: u32, max_key_size
         key.push(block_key);
     }
 
-    let result = repeated_xor(&input_bytes[..], &key[..]);
+    let result = repeated_xor(&input[..], &key[..]);
     (key, result)
 }
 
@@ -84,7 +81,6 @@ mod tests {
     use bytes;
 
     use super::*;
-    use std::io::{BufReader};
 
     #[test]
     fn single_byte_against_signle_byte() {
@@ -168,8 +164,8 @@ mod tests {
         let score = hamming_distance_criterion(&input, 6);
 
         let expected = 1.0 / (((
-            bytes::hamming_distance(BufReader::new("some r".as_bytes()), BufReader::new("andom ".as_bytes())) +
-            bytes::hamming_distance(BufReader::new("text i".as_bytes()), BufReader::new("n eng!".as_bytes()))
+            bytes::hamming_distance("some r".as_bytes(), "andom ".as_bytes()) +
+            bytes::hamming_distance("text i".as_bytes(), "n eng!".as_bytes())
         ) as f32 / 2.0) / 6.0);
 
         assert_eq!(score, expected)
@@ -181,9 +177,9 @@ mod tests {
         let score = hamming_distance_criterion(&input, 3);
 
         let expected = 1.0 / (((
-            bytes::hamming_distance(BufReader::new("som".as_bytes()), BufReader::new("e r".as_bytes())) +
-            bytes::hamming_distance(BufReader::new("and".as_bytes()), BufReader::new("om ".as_bytes())) +
-            bytes::hamming_distance(BufReader::new("tex".as_bytes()), BufReader::new("t!!".as_bytes()))
+            bytes::hamming_distance("som".as_bytes(), "e r".as_bytes()) +
+            bytes::hamming_distance("and".as_bytes(), "om ".as_bytes()) +
+            bytes::hamming_distance("tex".as_bytes(), "t!!".as_bytes())
         ) as f32 / 3.0) / 3.0);
 
         assert_eq!(score, expected)
@@ -195,8 +191,8 @@ mod tests {
         let score = hamming_distance_criterion(&input, 3);
 
         let expected = 1.0 / (((
-            bytes::hamming_distance(BufReader::new("som".as_bytes()), BufReader::new("e r".as_bytes())) +
-            bytes::hamming_distance(BufReader::new("and".as_bytes()), BufReader::new("om ".as_bytes()))
+            bytes::hamming_distance("som".as_bytes(), "e r".as_bytes()) +
+            bytes::hamming_distance("and".as_bytes(), "om ".as_bytes())
         ) as f32 / 2.0) / 3.0);
 
         assert_eq!(score, expected)
