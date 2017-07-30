@@ -2,16 +2,10 @@ use bytes;
 
 use std::io::{Read};
 
-pub fn repeated_xor<R: Read, S: Read>(bytes1: R, bytes2: S) -> Vec<u8> {
-    let repeated_key: Vec<u8> = bytes2
-        .bytes()
-        .map(|b| b.unwrap())
-        .collect();
-
-    bytes1
-        .bytes()
-        .map(|b| b.unwrap())
-        .zip(repeated_key.into_iter().cycle())
+pub fn repeated_xor(input: &[u8], key: &[u8]) -> Vec<u8> {
+    input
+        .iter()
+        .zip(key.iter().cycle())
         .map(|(b1, b2)| b1^b2)
         .collect()
 }
@@ -105,7 +99,7 @@ mod tests {
         let xor_bytes = &[0xd1][..];
 
         assert_eq!(
-            repeated_xor(BufReader::new(input), BufReader::new(xor_bytes)),
+            repeated_xor(input, xor_bytes),
             vec![0xb4]);
     }
 
@@ -115,7 +109,7 @@ mod tests {
         let xor_bytes = &[0xd1, 0x03][..];
 
         assert_eq!(
-            repeated_xor(BufReader::new(input), BufReader::new(xor_bytes)),
+            repeated_xor(input, xor_bytes),
             vec![0xb4, 0x22, 0x2b]);
     }
 
@@ -125,7 +119,7 @@ mod tests {
         let xor_bytes = &[0x65, 0x21, 0xfa][..];
 
         assert_eq!(
-            repeated_xor(BufReader::new(input), BufReader::new(xor_bytes)),
+            repeated_xor(input, xor_bytes),
             vec![0xb4, 0x22]);
     }
 
@@ -135,7 +129,7 @@ mod tests {
         let xor_bytes = &[0x65, 0x21, 0xfa][..];
 
         assert_eq!(
-            repeated_xor(BufReader::new(input), BufReader::new(xor_bytes)),
+            repeated_xor(input, xor_bytes),
             vec![0xb4, 0x22, 0x45]);
     }
 
@@ -143,7 +137,7 @@ mod tests {
     fn single_byte_decryption_retuns_byte_with_highest_score() {
         let input = "eeeee English text with lots of 'e' eeeeeeee".as_bytes();
         let key = &['x' as u8][..];
-        let encrypted = &repeated_xor(input, BufReader::new(key))[..];
+        let encrypted = &repeated_xor(input, key)[..];
 
         fn scorer(input: &Vec<u8>) -> f32 {
             input
@@ -220,8 +214,8 @@ mod tests {
         let plain_text = "this text is encrypted with repeated xor".as_bytes();
         let key = "SeCreT".as_bytes();
         let input = repeated_xor(
-            BufReader::new(plain_text),
-            BufReader::new(key));
+            plain_text,
+            key);
 
         fn keysize_scorer(_: &Vec<u8>, keysize: u32) -> f32 {
             if keysize == "SeCreT".as_bytes().len() as u32 {

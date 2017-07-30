@@ -1,7 +1,7 @@
 extern crate cryt;
 extern crate clap;
 use clap::{App, Arg, SubCommand};
-use std::io::{self, BufReader, Read};
+use std::io::{self, Read};
 
 use cryt::criteria;
 use cryt::encoding;
@@ -237,7 +237,10 @@ fn run_decode_hex() {
 }
 
 fn run_encrypt_xor(key: &str) {
-    let result: String = xor::repeated_xor(io::stdin(), BufReader::new(key.as_bytes()))
+    let mut input = Vec::new();
+    io::stdin().read_to_end(&mut input).unwrap();
+
+    let result: String = xor::repeated_xor(&input, key.as_bytes())
         .into_iter()
         .map(|b| b as char)
         .collect();
