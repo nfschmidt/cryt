@@ -1,5 +1,4 @@
-alias rustc='docker run --rm -it -v $(pwd):/app -v ~/.cargo/registry:/home/app/.cargo/registry rustdev rustc '
+alias rustc='docker run --rm -it -v $(pwd):/app -v ~/.cargo/registry:/home/app/.cargo/registry rust_static rustc '
 
-alias cargo='docker run --rm -it -v $(pwd):/app -v ~/.cargo/registry:/home/app/.cargo/registry rustdev cargo '
+alias cargo='docker run --rm -it -v $(pwd):/app -v ~/.cargo/registry:/home/app/.cargo/registry rust_static cargo '
 
-alias rustdev='docker run --rm -it -v $(pwd):/app -v ~/.cargo/registry:/home/app/.cargo/registry rustdev '
