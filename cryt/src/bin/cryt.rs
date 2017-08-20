@@ -6,7 +6,7 @@ use std::io::{self, Read, Write};
 
 use cryt::criteria;
 use cryt::encoding;
-use cryt::xor;
+use cryt::xor::{self, Xor};
 
 fn main() {
     let matches = App::new("cryt")
@@ -241,7 +241,7 @@ fn run_encrypt_xor(key: &str) {
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
-    let result = xor::repeated_xor(&input, key.as_bytes());
+    let result = Xor::new(key.as_bytes()).encrypt(&input);
     io::stdout().write(&result).unwrap();
 }
 
@@ -249,7 +249,9 @@ fn run_attack_xor(criterion: fn(&[u8]) -> f32) {
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
-    let (_, _, decrypted) = xor::single_byte_decrypted(&input, &criterion);
+    let (_, _, decrypted) = xor::SingleByteAttack::new()
+        .with_criterion(Box::new(criterion))
+        .result(&input);
 
     io::stdout().write(&decrypted).unwrap();
 }
@@ -258,7 +260,9 @@ fn run_attack_xor_detailed(criterion: fn(&[u8]) -> f32) {
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
-    let (key, score, decrypted) = xor::single_byte_decrypted(&input, &criterion);
+    let (key, score, decrypted) = xor::SingleByteAttack::new()
+        .with_criterion(Box::new(criterion))
+        .result(&input);
 
     print!("Key: {}\tScore: {}\tResult: ", key, score);
     io::stdout().write(&decrypted).unwrap();
@@ -269,7 +273,11 @@ fn run_attack_xor_keysize(criterion: fn(&[u8], size: u32) -> f32, min: u32, max:
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
-    let results = xor::repeated_xor_keysize(&input, min, max, &criterion);
+    let results = xor::KeysizeAttack::new()
+        .with_min_length(min)
+        .with_max_length(max)
+        .with_criterion(Box::new(criterion))
+        .result(&input);
 
     for (size, score) in results {
         println!("Size: {}\tScore: {}", size, score);
@@ -280,7 +288,14 @@ fn run_attack_xor_repeated(keysize_criterion: fn(&[u8], size: u32) -> f32, min: 
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
-    let (key, decrypted) = xor::decrypted_repeated_xor(&input, min, max, &keysize_criterion, &xor_criterion);
+    let (key, decrypted) = xor::RepeatedAttack::new()
+        .with_single_byte_attack(xor::SingleByteAttack::new()
+                                 .with_criterion(Box::new(xor_criterion)))
+        .with_keysize_attack(xor::KeysizeAttack::new()
+                             .with_min_length(min)
+                             .with_max_length(max)
+                             .with_criterion(Box::new(keysize_criterion)))
+        .result(&input);
 
     let mut stdout = io::stdout();
     print!("Key: ");
