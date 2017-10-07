@@ -126,6 +126,8 @@ impl KeysizeAttack {
 pub struct RepeatedAttack {
     single_byte_attack: SingleByteAttack,
     keysize_attack: KeysizeAttack,
+    result_criterion: Box<BytesCriterion>,
+    keysizes_count: usize,
 }
 
 impl RepeatedAttack {
@@ -133,6 +135,8 @@ impl RepeatedAttack {
         RepeatedAttack {
             single_byte_attack: SingleByteAttack::new(),
             keysize_attack: KeysizeAttack::new(),
+            result_criterion: Box::new(text_bytes),
+            keysizes_count: 1,
         }
     }
 
@@ -146,26 +150,50 @@ impl RepeatedAttack {
         self
     }
 
+    pub fn with_result_criterion(mut self, criterion: Box<BytesCriterion>) -> RepeatedAttack {
+        self.result_criterion = criterion;
+        self
+    }
+
+    pub fn with_keysizes_count(mut self, keysizes: usize) -> RepeatedAttack {
+        self.keysizes_count = keysizes;
+        self
+    }
+
     pub fn result(&self, input: &[u8]) -> (Vec<u8>, Vec<u8>) {
         let keysizes = self.keysize_attack.result(input);
-        let keysize = keysizes[0].0;
 
-        let mut key = Vec::new();
+        let mut score = 0.0;
+        let mut final_result = Vec::new();
+        let mut final_key = Vec::new();
 
-        for nth_position in 0..keysize {
-            let block: Vec<u8> = input
-                .iter()
-                .enumerate()
-                .filter(|x| x.0 as u32 % keysize == nth_position)
-                .map(|(_, &b)| b)
-                .collect();
+        for &(keysize, _) in keysizes.iter().take(self.keysizes_count) {
+            let mut key = Vec::new();
+            for nth_position in 0..keysize {
+                // Get the nth block of bytes separated by the keysize
+                let block: Vec<u8> = input
+                    .iter()
+                    .enumerate()
+                    .filter(|x| x.0 as u32 % keysize == nth_position)
+                    .map(|(_, &b)| b)
+                    .collect();
 
-            let (block_key, _, _) = self.single_byte_attack.result(&block);
-            key.push(block_key);
+                // Decrypt the block
+                let (block_key, _, _) = self.single_byte_attack.result(&block);
+                key.push(block_key);
+            }
+
+            // Keep track of the best result until now
+            let result = Xor::new(&key).decrypt(input);
+            let new_score = (self.result_criterion)(&result);
+            if new_score > score {
+                score = new_score;
+                final_result = result;
+                final_key = key;
+            }
         }
 
-        let result = Xor::new(&key).decrypt(input);
-        (key, result)
+        (final_key, final_result)
     }
 }
 
