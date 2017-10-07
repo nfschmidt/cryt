@@ -94,7 +94,19 @@ fn main() {
                                                                    .long("criterion")
                                                                    .takes_value(true)
                                                                    .possible_values(&["printable", "text"])
-                                                                   .help("criterion to be used for scoring the results"))
+                                                                   .help("criterion to be used for scoring the intermediate block results"))
+                                                              .arg(Arg::with_name("result-criterion")
+                                                                   .short("r")
+                                                                   .long("result-criterion")
+                                                                   .takes_value(true)
+                                                                   .possible_values(&["printable", "text"])
+                                                                   .help("criterion to be used for scoring the results for different keysizes"))
+                                                              .arg(Arg::with_name("keysizes-try")
+                                                                   .short("t")
+                                                                   .long("keysizes-try")
+                                                                   .takes_value(true)
+                                                                   .required(false)
+                                                                   .help("criterion to be used for scoring the results for different keysizes"))
                                                               .arg(Arg::with_name("min")
                                                                    .help("Minimum keysize to try")
                                                                    .long("min")
@@ -161,10 +173,23 @@ fn main() {
                     None => criteria::printable_bytes
                 };
 
+                let result_criterion = match xor_matches.value_of("result-criterion") {
+                    Some("printable") => criteria::printable_bytes,
+                    Some("text") => criteria::text_bytes,
+                    Some(_) => criteria::text_bytes,
+                    None => criteria::text_bytes
+                };
+
+
                 let keysize_criterion = match repeated_matches.value_of("keysize-criterion") {
                     Some("hamming-distance") => xor::hamming_distance_criterion,
                     Some(_) => xor::hamming_distance_criterion,
                     None => xor::hamming_distance_criterion
+                };
+
+                let keysize_try = match repeated_matches.value_of("keysizes-try") {
+                    Some(v) => v.parse::<usize>().unwrap(),
+                    None => 1
                 };
 
                 let min = match repeated_matches.value_of("min") {
@@ -177,7 +202,7 @@ fn main() {
                     None => 1
                 };
 
-                run_attack_xor_repeated(keysize_criterion, min, max, xor_criterion);
+                run_attack_xor_repeated(keysize_criterion, min, max, keysize_try, xor_criterion, result_criterion);
                 return;
             }
 
@@ -284,7 +309,7 @@ fn run_attack_xor_keysize(criterion: fn(&[u8], size: u32) -> f32, min: u32, max:
     }
 }
 
-fn run_attack_xor_repeated(keysize_criterion: fn(&[u8], size: u32) -> f32, min: u32, max: u32, xor_criterion: fn(&[u8]) -> f32) {
+fn run_attack_xor_repeated(keysize_criterion: fn(&[u8], size: u32) -> f32, min: u32, max: u32, keysize_try: usize, xor_criterion: fn(&[u8]) -> f32, result_criterion: fn(&[u8]) -> f32) {
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
@@ -295,6 +320,8 @@ fn run_attack_xor_repeated(keysize_criterion: fn(&[u8], size: u32) -> f32, min: 
                              .with_min_length(min)
                              .with_max_length(max)
                              .with_criterion(Box::new(keysize_criterion)))
+        .with_result_criterion(Box::new(result_criterion))
+        .with_keysizes_count(keysize_try)
         .result(&input);
 
     let mut stdout = io::stdout();
