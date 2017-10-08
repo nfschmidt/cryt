@@ -5,3 +5,4 @@ authors = ["app"]
 
 [dependencies]
 clap = "~2.19.0"
+regex = "0.2"

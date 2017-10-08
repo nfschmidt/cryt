@@ -1,12 +1,14 @@
 extern crate cryt;
 extern crate clap;
+extern crate regex;
 
 use clap::{App, Arg, SubCommand};
 use std::io::{self, Read, Write};
+use regex::Regex;
 
-use cryt::criteria;
+use cryt::criteria::{self, BytesCriterion};
 use cryt::encoding;
-use cryt::xor::{self, Xor};
+use cryt::xor::{self, Xor, KeysizeCriterion};
 
 fn main() {
     let matches = App::new("cryt")
@@ -93,7 +95,7 @@ fn main() {
                                                                    .short("x")
                                                                    .long("xor-criterion")
                                                                    .takes_value(true)
-                                                                   .possible_values(&["printable", "text"])
+                                                                   //.possible_values(&["printable", "text"])
                                                                    .help("criterion to be used for scoring the intermediate block results"))
                                                               .arg(Arg::with_name("criterion")
                                                                    .short("c")
@@ -159,9 +161,9 @@ fn main() {
         if let Some(xor_matches) = matches.subcommand_matches("xor") {
             if let Some(keysize_matches) = xor_matches.subcommand_matches("keysize") {
                 let criterion = match keysize_matches.value_of("criterion") {
-                    Some("hamming-distance") => xor::hamming_distance_criterion,
-                    Some(_) => xor::hamming_distance_criterion,
-                    None => xor::hamming_distance_criterion
+                    Some("hamming-distance") => Box::new(xor::hamming_distance_criterion),
+                    Some(_) => Box::new(xor::hamming_distance_criterion),
+                    None => Box::new(xor::hamming_distance_criterion),
                 };
 
                 let min = match keysize_matches.value_of("min") {
@@ -177,25 +179,45 @@ fn main() {
                 run_attack_xor_keysize(criterion, min, max);
                 return;
             } else if let Some(repeated_matches) = xor_matches.subcommand_matches("repeated") {
-                let xor_criterion = match repeated_matches.value_of("xor-criterion") {
-                    Some("printable") => criteria::printable_bytes,
-                    Some("text") => criteria::text_bytes,
-                    Some(_) => criteria::text_bytes,
-                    None => criteria::text_bytes
+                let xor_criterion: Box<BytesCriterion> = match repeated_matches.value_of("xor-criterion") {
+                    Some("printable") => Box::new(criteria::printable_bytes),
+                    Some("text") => Box::new(criteria::text_bytes),
+                    Some(value) => {
+                        let re = Regex::new(r"byte\((\d{1,3})\)").unwrap();
+                        let byte_text = re.captures(value).unwrap().get(1).unwrap().as_str();
+                        let byte = byte_text.parse::<u8>().unwrap();
+
+                        if value.contains("byte(") {
+                            criteria::make_common_byte(byte)
+                        } else {
+                            Box::new(criteria::text_bytes)
+                        }
+                    },
+                    None => Box::new(criteria::text_bytes)
                 };
 
-                let result_criterion = match xor_matches.value_of("criterion") {
-                    Some("printable") => criteria::printable_bytes,
-                    Some("text") => criteria::text_bytes,
-                    Some(_) => criteria::text_bytes,
-                    None => criteria::text_bytes
+                let result_criterion: Box<BytesCriterion> = match xor_matches.value_of("criterion") {
+                    Some("printable") => Box::new(criteria::printable_bytes),
+                    Some("text") => Box::new(criteria::text_bytes),
+                    Some(value) => {
+                        let re = Regex::new(r"byte\((\d{1,3})\)").unwrap();
+                        let byte_text = re.captures(value).unwrap().get(1).unwrap().as_str();
+                        let byte = byte_text.parse::<u8>().unwrap();
+
+                        if value.contains("byte(") {
+                            criteria::make_common_byte(byte)
+                        } else {
+                            Box::new(criteria::text_bytes)
+                        }
+                    },
+                    None => Box::new(criteria::text_bytes),
                 };
 
 
                 let keysize_criterion = match repeated_matches.value_of("keysize-criterion") {
-                    Some("hamming-distance") => xor::hamming_distance_criterion,
-                    Some(_) => xor::hamming_distance_criterion,
-                    None => xor::hamming_distance_criterion
+                    Some("hamming-distance") => Box::new(xor::hamming_distance_criterion),
+                    Some(_) => Box::new(xor::hamming_distance_criterion),
+                    None => Box::new(xor::hamming_distance_criterion),
                 };
 
                 let keysize_try = match repeated_matches.value_of("keysizes-try") {
@@ -217,11 +239,21 @@ fn main() {
                 return;
             }
 
-            let criterion = match xor_matches.value_of("criterion") {
-                Some("printable") => criteria::printable_bytes,
-                Some("text") => criteria::text_bytes,
-                Some(_) => criteria::printable_bytes,
-                None => criteria::printable_bytes
+            let criterion: Box<BytesCriterion> = match xor_matches.value_of("criterion") {
+                Some("printable") => Box::new(criteria::printable_bytes),
+                Some("text") => Box::new(criteria::text_bytes),
+                Some(value) => {
+                    let re = Regex::new(r"byte\((\d{1,3})\)").unwrap();
+                    let byte_text = re.captures(value).unwrap().get(1).unwrap().as_str();
+                    let byte = byte_text.parse::<u8>().unwrap();
+
+                    if value.contains("byte(") {
+                        criteria::make_common_byte(byte)
+                    } else {
+                        Box::new(criteria::text_bytes)
+                    }
+                },
+                None => Box::new(criteria::printable_bytes)
             };
 
             if xor_matches.is_present("detailed") {
@@ -289,23 +321,23 @@ fn run_decrypt_xor(key: &str) {
     io::stdout().write(&result).unwrap();
 }
 
-fn run_attack_xor(criterion: fn(&[u8]) -> f32) {
+fn run_attack_xor(criterion: Box<BytesCriterion>) {
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
     let (_, _, decrypted) = xor::SingleByteAttack::new()
-        .with_criterion(Box::new(criterion))
+        .with_criterion(criterion)
         .result(&input);
 
     io::stdout().write(&decrypted).unwrap();
 }
 
-fn run_attack_xor_detailed(criterion: fn(&[u8]) -> f32) {
+fn run_attack_xor_detailed(criterion: Box<BytesCriterion>) {
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
     let (key, score, decrypted) = xor::SingleByteAttack::new()
-        .with_criterion(Box::new(criterion))
+        .with_criterion(criterion)
         .result(&input);
 
     print!("Key: {}\tScore: {}\tResult: ", key, score);
@@ -313,14 +345,14 @@ fn run_attack_xor_detailed(criterion: fn(&[u8]) -> f32) {
     println!("");
 }
 
-fn run_attack_xor_keysize(criterion: fn(&[u8], size: u32) -> f32, min: u32, max: u32) {
+fn run_attack_xor_keysize(criterion: Box<KeysizeCriterion>, min: u32, max: u32) {
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
     let results = xor::KeysizeAttack::new()
         .with_min_length(min)
         .with_max_length(max)
-        .with_criterion(Box::new(criterion))
+        .with_criterion(criterion)
         .result(&input);
 
     for (size, score) in results {
@@ -328,18 +360,18 @@ fn run_attack_xor_keysize(criterion: fn(&[u8], size: u32) -> f32, min: u32, max:
     }
 }
 
-fn run_attack_xor_repeated(keysize_criterion: fn(&[u8], size: u32) -> f32, min: u32, max: u32, keysize_try: usize, xor_criterion: fn(&[u8]) -> f32, result_criterion: fn(&[u8]) -> f32) {
+fn run_attack_xor_repeated(keysize_criterion: Box<KeysizeCriterion>, min: u32, max: u32, keysize_try: usize, xor_criterion: Box<BytesCriterion>, result_criterion: Box<BytesCriterion>) {
     let mut input = Vec::new();
     io::stdin().read_to_end(&mut input).unwrap();
 
     let (key, decrypted) = xor::RepeatedAttack::new()
         .with_single_byte_attack(xor::SingleByteAttack::new()
-                                 .with_criterion(Box::new(xor_criterion)))
+                                 .with_criterion(xor_criterion))
         .with_keysize_attack(xor::KeysizeAttack::new()
                              .with_min_length(min)
                              .with_max_length(max)
-                             .with_criterion(Box::new(keysize_criterion)))
-        .with_result_criterion(Box::new(result_criterion))
+                             .with_criterion(keysize_criterion))
+        .with_result_criterion(result_criterion)
         .with_keysizes_count(keysize_try)
         .result(&input);
 
