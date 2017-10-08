@@ -180,8 +180,8 @@ fn main() {
                 let xor_criterion = match repeated_matches.value_of("xor-criterion") {
                     Some("printable") => criteria::printable_bytes,
                     Some("text") => criteria::text_bytes,
-                    Some(_) => criteria::printable_bytes,
-                    None => criteria::printable_bytes
+                    Some(_) => criteria::text_bytes,
+                    None => criteria::text_bytes
                 };
 
                 let result_criterion = match xor_matches.value_of("criterion") {
