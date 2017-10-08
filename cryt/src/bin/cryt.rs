@@ -35,7 +35,7 @@ fn main() {
                                                        .takes_value(true)
                                                        .required(true)
                                                        .help("xor key to be used"))))
-                          .subcommand(SubCommand::with_name("encrypt")
+                          .subcommand(SubCommand::with_name("decrypt")
                                       .about("Decrypt input with the specified algorithm")
                                       .subcommand(SubCommand::with_name("xor")
                                                   .about("Decrypt using xor")
@@ -89,15 +89,15 @@ fn main() {
                                                                    .takes_value(true)
                                                                    .possible_values(&["hamming-distance"])
                                                                    .required(false))
-                                                              .arg(Arg::with_name("criterion")
-                                                                   .short("c")
-                                                                   .long("criterion")
+                                                              .arg(Arg::with_name("xor-criterion")
+                                                                   .short("x")
+                                                                   .long("xor-criterion")
                                                                    .takes_value(true)
                                                                    .possible_values(&["printable", "text"])
                                                                    .help("criterion to be used for scoring the intermediate block results"))
-                                                              .arg(Arg::with_name("result-criterion")
-                                                                   .short("r")
-                                                                   .long("result-criterion")
+                                                              .arg(Arg::with_name("criterion")
+                                                                   .short("c")
+                                                                   .long("criterion")
                                                                    .takes_value(true)
                                                                    .possible_values(&["printable", "text"])
                                                                    .help("criterion to be used for scoring the results for different keysizes"))
@@ -144,6 +144,17 @@ fn main() {
                 }
             }
         }
+    } else if let Some(matches) = matches.subcommand_matches("decrypt") {
+        if let Some(matches) = matches.subcommand_matches("xor") {
+            match matches.value_of("key") {
+                Some(k) => {
+                    run_decrypt_xor(k);
+                }
+                None => {
+                    println!("Error: No key received!");
+                }
+            }
+        }
     } else if let Some(matches) = matches.subcommand_matches("attack") {
         if let Some(xor_matches) = matches.subcommand_matches("xor") {
             if let Some(keysize_matches) = xor_matches.subcommand_matches("keysize") {
@@ -166,14 +177,14 @@ fn main() {
                 run_attack_xor_keysize(criterion, min, max);
                 return;
             } else if let Some(repeated_matches) = xor_matches.subcommand_matches("repeated") {
-                let xor_criterion = match repeated_matches.value_of("criterion") {
+                let xor_criterion = match repeated_matches.value_of("xor-criterion") {
                     Some("printable") => criteria::printable_bytes,
                     Some("text") => criteria::text_bytes,
                     Some(_) => criteria::printable_bytes,
                     None => criteria::printable_bytes
                 };
 
-                let result_criterion = match xor_matches.value_of("result-criterion") {
+                let result_criterion = match xor_matches.value_of("criterion") {
                     Some("printable") => criteria::printable_bytes,
                     Some("text") => criteria::text_bytes,
                     Some(_) => criteria::text_bytes,
@@ -267,6 +278,14 @@ fn run_encrypt_xor(key: &str) {
     io::stdin().read_to_end(&mut input).unwrap();
 
     let result = Xor::new(key.as_bytes()).encrypt(&input);
+    io::stdout().write(&result).unwrap();
+}
+
+fn run_decrypt_xor(key: &str) {
+    let mut input = Vec::new();
+    io::stdin().read_to_end(&mut input).unwrap();
+
+    let result = Xor::new(key.as_bytes()).decrypt(&input);
     io::stdout().write(&result).unwrap();
 }
 
