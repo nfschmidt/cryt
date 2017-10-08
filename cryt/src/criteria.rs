@@ -23,6 +23,18 @@ pub fn text_bytes(bytes: &[u8]) -> f32 {
         
 }
 
+pub fn make_common_byte(byte: u8) -> Box<BytesCriterion> {
+    let criterion = move |bytes: &[u8]| {
+        bytes
+            .iter()
+            .filter(|&&b| b == byte)
+            .collect::<Vec<_>>()
+            .len() as f32 / bytes.len() as f32
+    };
+
+    Box::new(criterion)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -37,5 +49,12 @@ mod tests {
     fn test_text_bytes() {
         let input = "h el.l'o$& bye! bye#@".as_bytes();
         assert_eq!(text_bytes(&input[..].to_vec()), 17.0/21.0);
+    }
+
+    #[test]
+    fn test_common_byte() {
+        let a_criterion = make_common_byte('a' as u8);
+        let input = "axaxax".as_bytes();
+        assert_eq!(a_criterion(&input), 3.0/6.0);
     }
 }
